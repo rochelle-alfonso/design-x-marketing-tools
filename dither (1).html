@@ -1,0 +1,2163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1-Bit Dither Studio</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Instrument+Serif&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0a;
+    --fg: #e8e8e8;
+    --accent: #ffffff;
+    --dim: #555;
+    --border: #222;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  header {
+    padding: 32px 40px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  header h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: -0.5px;
+    color: var(--accent);
+  }
+
+  header span {
+    color: var(--dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    height: calc(100vh - 85px);
+    overflow: hidden;
+  }
+
+  .sidebar {
+    border-right: 1px solid var(--border);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+    height: 100%;
+  }
+
+  .control-group label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--dim);
+    margin-bottom: 8px;
+  }
+
+  .control-group select,
+  .control-group input[type="range"] {
+    width: 100%;
+    background: #151515;
+    border: 1px solid var(--border);
+    color: var(--fg);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .control-group select:hover,
+  .control-group input[type="range"]:hover {
+    border-color: #444;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    height: 4px;
+    background: #333;
+    border: none !important;
+    border-radius: 2px;
+    padding: 0 !important;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  .range-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .range-row input { flex: 1; }
+
+  .range-val {
+    font-size: 11px;
+    color: var(--dim);
+    min-width: 32px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .color-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .color-pick {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .color-pick span {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--dim);
+  }
+
+  .color-pick input[type="color"] {
+    width: 100%;
+    height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+    padding: 2px;
+  }
+
+  .upload-zone {
+    border: 2px dashed #333;
+    border-radius: 6px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+
+  .upload-zone:hover,
+  .upload-zone.dragover {
+    border-color: #666;
+    background: #111;
+  }
+
+  .upload-zone p {
+    color: var(--dim);
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  .upload-zone p strong {
+    color: var(--fg);
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+
+  .upload-zone input { display: none; }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .btn {
+    flex: 1;
+    padding: 10px 12px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #151515;
+    color: var(--fg);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+
+  .btn:hover { background: #222; border-color: #444; }
+
+  .btn.primary {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+
+  .btn.primary:hover { background: #ccc; }
+
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .canvas-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    position: relative;
+    background:
+      radial-gradient(circle at 1px 1px, #181818 1px, transparent 0);
+    background-size: 24px 24px;
+    overflow: hidden;
+    height: 100%;
+  }
+
+  .canvas-area.empty::after {
+    content: 'Upload an image or video to begin';
+    color: #333;
+    font-size: 14px;
+    letter-spacing: 1px;
+    position: absolute;
+  }
+
+  canvas {
+    max-width: 100%;
+    max-height: calc(100vh - 160px);
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    box-shadow: 0 8px 60px rgba(0,0,0,0.6);
+  }
+
+  .hidden-canvas { display: none; }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  .checkbox-row input[type="checkbox"] {
+    accent-color: white;
+    width: 14px;
+    height: 14px;
+  }
+
+  .checkbox-row span {
+    font-size: 11px;
+    color: var(--fg);
+  }
+
+  .video-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .video-controls .btn {
+    flex: none;
+    width: 40px;
+    padding: 8px 0;
+  }
+
+  .video-controls input[type="range"] { flex: 1; }
+
+  .progress-wrap {
+    background: #151515;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+  }
+
+  .progress-wrap .progress-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--dim);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .progress-bar-bg {
+    background: #222;
+    border-radius: 3px;
+    height: 6px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    background: var(--accent);
+    height: 100%;
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.15s;
+  }
+
+  .progress-text {
+    font-size: 11px;
+    color: var(--dim);
+    margin-top: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .export-row select {
+    flex: 1;
+    background: #151515;
+    border: 1px solid var(--border);
+    color: var(--fg);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .export-row select:hover { border-color: #444; }
+
+  .keyframe-timeline {
+    position: relative;
+    height: 24px;
+    background: #1a1a1a;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    overflow: visible;
+  }
+
+  .kf-track {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .kf-marker {
+    position: absolute;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    background: var(--accent);
+    transform: translate(-50%, -50%) rotate(45deg);
+    cursor: pointer;
+    border: 1px solid #888;
+    z-index: 1;
+    transition: background 0.15s;
+  }
+
+  .kf-marker:hover { background: #ccc; }
+  .kf-marker.active { background: #ff9900; border-color: #ff9900; }
+
+  .kf-label {
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    color: var(--dim);
+    white-space: nowrap;
+    pointer-events: none;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .kf-marker.active .kf-label { color: #ff9900; }
+
+  .kf-buttons {
+    display: flex;
+    gap: 6px;
+  }
+
+  .kf-buttons .btn {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+
+  @media (max-width: 768px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      max-height: 50vh;
+    }
+    .canvas-area { min-height: 50vh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>1-Bit Dither Studio</h1>
+  <span>Pixel dithering tool</span>
+</header>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="upload-zone" id="dropZone">
+      <p><strong>Drop image or video here</strong>or click to browse</p>
+      <input type="file" id="fileInput" accept="image/*,video/mp4,video/webm,video/ogg,video/quicktime">
+    </div>
+
+    <!-- Video playback controls (hidden by default) -->
+    <div class="control-group" id="videoControls" style="display:none">
+      <label>Playback</label>
+      <div class="video-controls">
+        <button class="btn" id="playPauseBtn">&#9654;</button>
+        <input type="range" id="videoScrub" min="0" max="1000" value="0" step="1">
+        <span class="range-val" id="videoTime">0:00</span>
+      </div>
+    </div>
+
+    <!-- Keyframe controls (hidden by default) -->
+    <div class="control-group" id="keyframeControls" style="display:none">
+      <label>Keyframes</label>
+      <div class="keyframe-timeline" id="kfTimeline">
+        <div class="kf-track" id="kfTrack"></div>
+      </div>
+      <div class="kf-buttons">
+        <button class="btn" id="kfAdd" title="Add keyframe at current time">+ Add</button>
+        <button class="btn" id="kfRemove" title="Remove selected keyframe">&minus; Remove</button>
+        <button class="btn" id="kfClear" title="Clear all keyframes">Clear</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Algorithm</label>
+      <select id="algorithm">
+        <option value="floyd-steinberg">Floyd–Steinberg</option>
+        <option value="atkinson">Atkinson</option>
+        <option value="ordered4">Ordered 4×4 (Bayer)</option>
+        <option value="ordered8">Ordered 8×8 (Bayer)</option>
+        <option value="threshold">Threshold</option>
+        <option value="random">Random / Noise</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label>Pixel Scale</label>
+      <div class="range-row">
+        <input type="range" id="pixelSize" min="1" max="10" value="3">
+        <span class="range-val" id="pixelSizeVal">3</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Threshold</label>
+      <div class="range-row">
+        <input type="range" id="threshold" min="0" max="255" value="128">
+        <span class="range-val" id="thresholdVal">128</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Contrast</label>
+      <div class="range-row">
+        <input type="range" id="contrast" min="-100" max="100" value="20">
+        <span class="range-val" id="contrastVal">20</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Brightness</label>
+      <div class="range-row">
+        <input type="range" id="brightness" min="-100" max="100" value="0">
+        <span class="range-val" id="brightnessVal">0</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Colors</label>
+      <div class="color-row">
+        <div class="color-pick">
+          <span>Foreground</span>
+          <input type="color" id="fgColor" value="#006BF4">
+        </div>
+        <div class="color-pick">
+          <span>Background</span>
+          <input type="color" id="bgColor" value="#ffffff">
+        </div>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="checkbox-row" onclick="document.getElementById('invert').click()">
+        <input type="checkbox" id="invert">
+        <span>Invert</span>
+      </div>
+    </div>
+
+    <!-- Chroma key background removal -->
+    <div class="control-group" id="chromaKeyGroup">
+      <label>Remove Background</label>
+      <div class="checkbox-row" onclick="document.getElementById('chromaKey').click()">
+        <input type="checkbox" id="chromaKey">
+        <span>Enable chroma key</span>
+      </div>
+      <div id="chromaKeyControls" style="display:none;margin-top:8px">
+        <div class="color-row" style="margin-bottom:8px">
+          <div class="color-pick">
+            <span>Key Color</span>
+            <input type="color" id="chromaColor" value="#00ff00">
+          </div>
+          <button class="btn" id="eyedropperBtn" style="align-self:flex-end;flex:none;width:40px" title="Pick from image">&#8857;</button>
+        </div>
+        <div class="range-row">
+          <input type="range" id="chromaTolerance" min="0" max="150" value="50">
+          <span class="range-val" id="chromaToleranceVal">50</span>
+        </div>
+        <div style="margin-top:8px">
+          <span style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px">Replace background</span>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <button class="btn" id="bgUploadBtn" style="flex:1;font-size:10px">Upload BG</button>
+            <button class="btn" id="bgClearBtn" style="flex:1;font-size:10px">Clear BG</button>
+          </div>
+          <input type="file" id="bgFileInput" accept="image/*,video/*" style="display:none">
+          <div id="bgFileName" style="font-size:10px;color:var(--dim);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Luma key background removal -->
+    <div class="control-group" id="lumaKeyGroup">
+      <label>Luma Key</label>
+      <div class="checkbox-row" onclick="document.getElementById('lumaKey').click()">
+        <input type="checkbox" id="lumaKey">
+        <span>Enable luma key</span>
+      </div>
+      <div id="lumaKeyControls" style="display:none;margin-top:8px">
+        <div style="margin-bottom:8px">
+          <span style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px">Key Type</span>
+          <select id="lumaKeyType" style="width:100%;margin-top:4px">
+            <option value="brighter">Key Out Brighter</option>
+            <option value="darker">Key Out Darker</option>
+          </select>
+        </div>
+        <div style="margin-bottom:6px">
+          <span style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px">Threshold</span>
+          <div class="range-row">
+            <input type="range" id="lumaThreshold" min="0" max="255" value="200">
+            <span class="range-val" id="lumaThresholdVal">200</span>
+          </div>
+        </div>
+        <div style="margin-bottom:8px">
+          <span style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px">Edge Feather</span>
+          <div class="range-row">
+            <input type="range" id="lumaFeather" min="-100" max="100" value="0">
+            <span class="range-val" id="lumaFeatherVal">0</span>
+          </div>
+        </div>
+        <div style="margin-top:8px">
+          <span style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px">Replace background</span>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <button class="btn" id="lumaBgUploadBtn" style="flex:1;font-size:10px">Upload BG</button>
+            <button class="btn" id="lumaBgClearBtn" style="flex:1;font-size:10px">Clear BG</button>
+          </div>
+          <input type="file" id="lumaBgFileInput" accept="image/*,video/*" style="display:none">
+          <div id="lumaBgFileName" style="font-size:10px;color:var(--dim);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GIF FPS control (hidden by default) -->
+    <div class="control-group" id="gifFpsGroup" style="display:none">
+      <label>GIF Frame Rate</label>
+      <div class="range-row">
+        <input type="range" id="gifFps" min="5" max="30" value="10">
+        <span class="range-val" id="gifFpsVal">10</span>
+      </div>
+    </div>
+
+    <!-- Image export buttons -->
+    <div class="btn-row" id="imageExportRow">
+      <button class="btn" id="resetBtn">Reset</button>
+      <button class="btn primary" id="saveBtn">PNG</button>
+      <button class="btn primary" id="saveSvgBtn">SVG</button>
+    </div>
+
+    <!-- Video export buttons (hidden by default) -->
+    <div class="btn-row export-row" id="videoExportRow" style="display:none">
+      <button class="btn" id="resetBtn2">Reset</button>
+      <select id="exportFormat">
+        <option value="webm">WebM</option>
+        <option value="gif">GIF</option>
+        <option value="mp4">MP4</option>
+      </select>
+      <button class="btn primary" id="exportVideoBtn">Export</button>
+    </div>
+
+    <!-- Progress indicator (hidden by default) -->
+    <div id="exportProgress" style="display:none">
+      <div class="progress-wrap">
+        <span class="progress-label" id="progressLabel">Exporting...</span>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progressBar"></div>
+        </div>
+        <div class="progress-text">
+          <span id="progressText">0%</span>
+          <button class="btn" id="cancelExportBtn" style="padding:4px 10px;flex:none">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="canvas-area empty" id="canvasArea">
+    <canvas id="output"></canvas>
+    <canvas id="work" class="hidden-canvas"></canvas>
+    <video id="sourceVideo" class="hidden-canvas" muted playsinline></video>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const output = $('output');
+const work = $('work');
+const octx = output.getContext('2d');
+const wctx = work.getContext('2d');
+
+let sourceImg = null;
+let sourceVideo = null;
+let isVideoMode = false;
+let lastResult = null;
+let playing = false;
+let cancelExport = false;
+let videoObjUrl = null;
+let pickingColor = false;
+let keyframes = [];
+let activeKeyframe = -1;
+let updatingFromKeyframe = false;
+let bgMedia = null;
+let bgMediaIsVideo = false;
+let bgObjUrl = null;
+let lumaBgMedia = null;
+let lumaBgMediaIsVideo = false;
+let lumaBgObjUrl = null;
+
+// ---- FILE UPLOAD ----
+
+$('dropZone').addEventListener('click', () => $('fileInput').click());
+$('fileInput').addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
+$('dropZone').addEventListener('dragover', e => { e.preventDefault(); $('dropZone').classList.add('dragover'); });
+$('dropZone').addEventListener('dragleave', () => $('dropZone').classList.remove('dragover'));
+$('dropZone').addEventListener('drop', e => {
+  e.preventDefault();
+  $('dropZone').classList.remove('dragover');
+  if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+function handleFile(file) {
+  if(file.type.startsWith('video/')) {
+    loadVideo(file);
+  } else {
+    loadImage(file);
+  }
+}
+
+function loadImage(file) {
+  cleanupVideo();
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      sourceImg = img;
+      sourceVideo = null;
+      isVideoMode = false;
+      $('canvasArea').classList.remove('empty');
+      $('dropZone').querySelector('p').innerHTML = '<strong>\u2713 ' + file.name + '</strong>Drop or click to replace';
+      showVideoUI(false);
+      render();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function loadVideo(file) {
+  cleanupVideo();
+  sourceImg = null;
+  isVideoMode = true;
+
+  const video = $('sourceVideo');
+  videoObjUrl = URL.createObjectURL(file);
+  video.src = videoObjUrl;
+
+  video.onloadedmetadata = () => {
+    sourceVideo = video;
+    $('canvasArea').classList.remove('empty');
+    $('dropZone').querySelector('p').innerHTML = '<strong>\u2713 ' + file.name + '</strong>Drop or click to replace';
+    $('videoScrub').value = 0;
+    updateVideoTime();
+    showVideoUI(true);
+    video.currentTime = 0;
+  };
+
+  video.onseeked = () => {
+    if(!playing) renderVideoFrame();
+  };
+}
+
+function cleanupVideo() {
+  if(playing) {
+    playing = false;
+    $('sourceVideo').pause();
+    $('playPauseBtn').innerHTML = '&#9654;';
+  }
+  if(videoObjUrl) {
+    URL.revokeObjectURL(videoObjUrl);
+    videoObjUrl = null;
+  }
+  keyframes = [];
+  activeKeyframe = -1;
+}
+
+function showVideoUI(isVideo) {
+  $('videoControls').style.display = isVideo ? 'block' : 'none';
+  $('keyframeControls').style.display = isVideo ? 'block' : 'none';
+  $('videoExportRow').style.display = isVideo ? 'flex' : 'none';
+  $('imageExportRow').style.display = isVideo ? 'none' : 'flex';
+  updateGifFpsVisibility();
+  if(isVideo) renderKeyframeMarkers();
+}
+
+function updateGifFpsVisibility() {
+  $('gifFpsGroup').style.display = (isVideoMode && $('exportFormat').value === 'gif') ? 'block' : 'none';
+}
+
+// ---- CONTROLS ----
+
+const controls = ['algorithm','pixelSize','threshold','contrast','brightness','fgColor','bgColor','invert'];
+controls.forEach(id => {
+  $(id).addEventListener('input', () => {
+    if($(id + 'Val')) $(id + 'Val').textContent = $(id).value;
+    render();
+  });
+});
+
+$('gifFps').addEventListener('input', () => {
+  $('gifFpsVal').textContent = $('gifFps').value;
+});
+
+$('exportFormat').addEventListener('change', updateGifFpsVisibility);
+
+// Chroma key controls
+$('chromaKey').addEventListener('change', () => {
+  $('chromaKeyControls').style.display = $('chromaKey').checked ? 'block' : 'none';
+  render();
+});
+$('chromaColor').addEventListener('input', () => render());
+$('chromaTolerance').addEventListener('input', () => {
+  $('chromaToleranceVal').textContent = $('chromaTolerance').value;
+  render();
+});
+
+// Luma key controls
+$('lumaKey').addEventListener('change', () => {
+  $('lumaKeyControls').style.display = $('lumaKey').checked ? 'block' : 'none';
+  render();
+});
+$('lumaKeyType').addEventListener('change', () => render());
+$('lumaThreshold').addEventListener('input', () => {
+  $('lumaThresholdVal').textContent = $('lumaThreshold').value;
+  render();
+});
+$('lumaFeather').addEventListener('input', () => {
+  $('lumaFeatherVal').textContent = $('lumaFeather').value;
+  render();
+});
+
+// Eyedropper: pick color from source image
+$('eyedropperBtn').addEventListener('click', () => {
+  pickingColor = true;
+  output.style.cursor = 'crosshair';
+});
+
+output.addEventListener('click', (e) => {
+  if(!pickingColor) return;
+  pickingColor = false;
+  output.style.cursor = '';
+
+  // Map click coords to work canvas (source) coords
+  const rect = output.getBoundingClientRect();
+  const cx = (e.clientX - rect.left) / rect.width * work.width;
+  const cy = (e.clientY - rect.top) / rect.height * work.height;
+  const px = Math.floor(cx);
+  const py = Math.floor(cy);
+  if(px < 0 || py < 0 || px >= work.width || py >= work.height) return;
+
+  const pxData = wctx.getImageData(px, py, 1, 1).data;
+  const hex = '#' + [pxData[0], pxData[1], pxData[2]].map(v => v.toString(16).padStart(2, '0')).join('');
+  $('chromaColor').value = hex;
+  if(!$('chromaKey').checked) {
+    $('chromaKey').checked = true;
+    $('chromaKeyControls').style.display = 'block';
+  }
+  render();
+});
+
+// ---- BACKGROUND REPLACEMENT ----
+
+$('bgUploadBtn').addEventListener('click', () => $('bgFileInput').click());
+
+$('bgFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  cleanupBgMedia();
+
+  const url = URL.createObjectURL(file);
+  bgObjUrl = url;
+
+  if(file.type.startsWith('video/')) {
+    const vid = document.createElement('video');
+    vid.muted = true;
+    vid.loop = true;
+    vid.playsInline = true;
+    vid.src = url;
+    vid.onloadeddata = () => {
+      bgMedia = vid;
+      bgMediaIsVideo = true;
+      $('bgFileName').textContent = file.name;
+      render();
+    };
+  } else {
+    const img = new Image();
+    img.onload = () => {
+      bgMedia = img;
+      bgMediaIsVideo = false;
+      $('bgFileName').textContent = file.name;
+      render();
+    };
+    img.src = url;
+  }
+  e.target.value = '';
+});
+
+$('bgClearBtn').addEventListener('click', () => {
+  cleanupBgMedia();
+  render();
+});
+
+function cleanupBgMedia() {
+  if(bgObjUrl) {
+    URL.revokeObjectURL(bgObjUrl);
+    bgObjUrl = null;
+  }
+  if(bgMedia && bgMediaIsVideo) {
+    bgMedia.pause();
+    bgMedia.src = '';
+  }
+  bgMedia = null;
+  bgMediaIsVideo = false;
+  $('bgFileName').textContent = '';
+}
+
+// ---- LUMA BG REPLACEMENT ----
+
+$('lumaBgUploadBtn').addEventListener('click', () => $('lumaBgFileInput').click());
+
+$('lumaBgFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  cleanupLumaBgMedia();
+
+  const url = URL.createObjectURL(file);
+  lumaBgObjUrl = url;
+
+  if(file.type.startsWith('video/')) {
+    const vid = document.createElement('video');
+    vid.muted = true;
+    vid.loop = true;
+    vid.playsInline = true;
+    vid.src = url;
+    vid.onloadeddata = () => {
+      lumaBgMedia = vid;
+      lumaBgMediaIsVideo = true;
+      $('lumaBgFileName').textContent = file.name;
+      render();
+    };
+  } else {
+    const img = new Image();
+    img.onload = () => {
+      lumaBgMedia = img;
+      lumaBgMediaIsVideo = false;
+      $('lumaBgFileName').textContent = file.name;
+      render();
+    };
+    img.src = url;
+  }
+  e.target.value = '';
+});
+
+$('lumaBgClearBtn').addEventListener('click', () => {
+  cleanupLumaBgMedia();
+  render();
+});
+
+function cleanupLumaBgMedia() {
+  if(lumaBgObjUrl) {
+    URL.revokeObjectURL(lumaBgObjUrl);
+    lumaBgObjUrl = null;
+  }
+  if(lumaBgMedia && lumaBgMediaIsVideo) {
+    lumaBgMedia.pause();
+    lumaBgMedia.src = '';
+  }
+  lumaBgMedia = null;
+  lumaBgMediaIsVideo = false;
+  $('lumaBgFileName').textContent = '';
+}
+
+// Reusable bg canvases for performance
+let _bgCanvas = null;
+let _bgCtx = null;
+let _lumaBgCanvas = null;
+let _lumaBgCtx = null;
+
+function getBgPixels(w, h, media) {
+  if(!media) return null;
+  if(!_bgCanvas) {
+    _bgCanvas = document.createElement('canvas');
+    _bgCtx = _bgCanvas.getContext('2d');
+  }
+  _bgCanvas.width = w;
+  _bgCanvas.height = h;
+  _bgCtx.drawImage(media, 0, 0, w, h);
+  return _bgCtx.getImageData(0, 0, w, h).data;
+}
+
+function getLumaBgPixels(w, h) {
+  if(!lumaBgMedia) return null;
+  if(!_lumaBgCanvas) {
+    _lumaBgCanvas = document.createElement('canvas');
+    _lumaBgCtx = _lumaBgCanvas.getContext('2d');
+  }
+  _lumaBgCanvas.width = w;
+  _lumaBgCanvas.height = h;
+  _lumaBgCtx.drawImage(lumaBgMedia, 0, 0, w, h);
+  return _lumaBgCtx.getImageData(0, 0, w, h).data;
+}
+
+// ---- KEYFRAME ENGINE ----
+
+function captureCurrentParams() {
+  return {
+    pixelSize: parseInt($('pixelSize').value),
+    threshold: parseInt($('threshold').value),
+    contrast: parseInt($('contrast').value),
+    brightness: parseInt($('brightness').value),
+    algorithm: $('algorithm').value,
+    fgColor: $('fgColor').value,
+    bgColor: $('bgColor').value,
+    invert: $('invert').checked,
+    chromaKey: $('chromaKey').checked,
+    chromaColor: $('chromaColor').value,
+    chromaTolerance: parseInt($('chromaTolerance').value),
+    lumaKey: $('lumaKey').checked,
+    lumaKeyType: $('lumaKeyType').value,
+    lumaThreshold: parseInt($('lumaThreshold').value),
+    lumaFeather: parseInt($('lumaFeather').value)
+  };
+}
+
+function applyParamsToDOM(params) {
+  if(!params) return;
+  updatingFromKeyframe = true;
+  $('pixelSize').value = params.pixelSize;
+  $('pixelSizeVal').textContent = params.pixelSize;
+  $('threshold').value = params.threshold;
+  $('thresholdVal').textContent = params.threshold;
+  $('contrast').value = params.contrast;
+  $('contrastVal').textContent = params.contrast;
+  $('brightness').value = params.brightness;
+  $('brightnessVal').textContent = params.brightness;
+  $('algorithm').value = params.algorithm;
+  $('fgColor').value = params.fgColor;
+  $('bgColor').value = params.bgColor;
+  $('invert').checked = params.invert;
+  $('chromaKey').checked = params.chromaKey;
+  $('chromaKeyControls').style.display = params.chromaKey ? 'block' : 'none';
+  $('chromaColor').value = params.chromaColor;
+  $('chromaTolerance').value = params.chromaTolerance;
+  $('chromaToleranceVal').textContent = params.chromaTolerance;
+  if(params.lumaKey !== undefined) {
+    $('lumaKey').checked = params.lumaKey;
+    $('lumaKeyControls').style.display = params.lumaKey ? 'block' : 'none';
+    $('lumaKeyType').value = params.lumaKeyType;
+    $('lumaThreshold').value = params.lumaThreshold;
+    $('lumaThresholdVal').textContent = params.lumaThreshold;
+    $('lumaFeather').value = params.lumaFeather;
+    $('lumaFeatherVal').textContent = params.lumaFeather;
+  }
+  updatingFromKeyframe = false;
+}
+
+function getParamsAtTime(t) {
+  if(keyframes.length === 0) return null;
+  if(keyframes.length === 1) return { ...keyframes[0].params };
+
+  // Find surrounding keyframes
+  let before = null, after = null;
+  for(const kf of keyframes) {
+    if(kf.time <= t) before = kf;
+    if(kf.time >= t && !after) after = kf;
+  }
+  if(!before) return { ...after.params };
+  if(!after) return { ...before.params };
+  if(before === after) return { ...before.params };
+
+  const ratio = (t - before.time) / (after.time - before.time);
+  return interpolateParams(before.params, after.params, ratio);
+}
+
+function interpolateParams(a, b, ratio) {
+  const numericKeys = ['pixelSize', 'threshold', 'contrast', 'brightness', 'chromaTolerance', 'lumaThreshold', 'lumaFeather'];
+  const discreteKeys = ['algorithm', 'invert', 'chromaKey', 'lumaKey', 'lumaKeyType'];
+  const colorKeys = ['fgColor', 'bgColor', 'chromaColor'];
+
+  const result = {};
+
+  for(const key of numericKeys) {
+    result[key] = Math.round(a[key] + (b[key] - a[key]) * ratio);
+  }
+
+  for(const key of discreteKeys) {
+    result[key] = ratio < 0.5 ? a[key] : b[key];
+  }
+
+  for(const key of colorKeys) {
+    result[key] = interpolateColor(a[key], b[key], ratio);
+  }
+
+  return result;
+}
+
+function interpolateColor(hexA, hexB, ratio) {
+  const a = hexToRGB(hexA);
+  const b = hexToRGB(hexB);
+  const r = Math.round(a[0] + (b[0] - a[0]) * ratio);
+  const g = Math.round(a[1] + (b[1] - a[1]) * ratio);
+  const bl = Math.round(a[2] + (b[2] - a[2]) * ratio);
+  return '#' + [r, g, bl].map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('');
+}
+
+// ---- KEYFRAME UI ----
+
+function addKeyframe() {
+  if(!sourceVideo) return;
+  const time = sourceVideo.currentTime || 0;
+
+  // Check if keyframe already exists at this time (within 0.05s)
+  const existing = keyframes.findIndex(kf => Math.abs(kf.time - time) < 0.05);
+  if(existing >= 0) {
+    // Update existing keyframe
+    keyframes[existing].params = captureCurrentParams();
+    activeKeyframe = existing;
+  } else {
+    // Add new keyframe
+    const kf = { time, params: captureCurrentParams() };
+    keyframes.push(kf);
+    keyframes.sort((a, b) => a.time - b.time);
+    activeKeyframe = keyframes.indexOf(kf);
+  }
+
+  renderKeyframeMarkers();
+}
+
+function removeKeyframe() {
+  if(activeKeyframe < 0 || activeKeyframe >= keyframes.length) return;
+  keyframes.splice(activeKeyframe, 1);
+  activeKeyframe = -1;
+  renderKeyframeMarkers();
+  render();
+}
+
+function clearKeyframes() {
+  keyframes = [];
+  activeKeyframe = -1;
+  renderKeyframeMarkers();
+  render();
+}
+
+function selectKeyframe(idx) {
+  if(idx < 0 || idx >= keyframes.length) return;
+  activeKeyframe = idx;
+  const kf = keyframes[idx];
+
+  // Seek video to keyframe time
+  if(sourceVideo) {
+    sourceVideo.currentTime = kf.time;
+  }
+
+  // Load keyframe params into controls
+  applyParamsToDOM(kf.params);
+  renderKeyframeMarkers();
+  render();
+}
+
+function formatKfTime(t) {
+  const m = Math.floor(t / 60);
+  const s = (t % 60).toFixed(1);
+  return m > 0 ? m + ':' + (s < 10 ? '0' : '') + s : s + 's';
+}
+
+function renderKeyframeMarkers() {
+  const track = $('kfTrack');
+  track.innerHTML = '';
+  if(!sourceVideo || !sourceVideo.duration) return;
+
+  keyframes.forEach((kf, idx) => {
+    const marker = document.createElement('div');
+    marker.className = 'kf-marker' + (idx === activeKeyframe ? ' active' : '');
+    marker.style.left = (kf.time / sourceVideo.duration * 100) + '%';
+
+    const label = document.createElement('span');
+    label.className = 'kf-label';
+    label.textContent = formatKfTime(kf.time);
+    marker.appendChild(label);
+
+    marker.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectKeyframe(idx);
+    });
+    track.appendChild(marker);
+  });
+}
+
+// Click timeline track to add keyframe at that position
+$('kfTimeline').addEventListener('click', (e) => {
+  if(!sourceVideo || !sourceVideo.duration) return;
+  // Don't add if click was on a marker (handled by marker's own click)
+  if(e.target.classList.contains('kf-marker')) return;
+  const rect = $('kfTimeline').getBoundingClientRect();
+  const ratio = (e.clientX - rect.left) / rect.width;
+  const time = ratio * sourceVideo.duration;
+  sourceVideo.currentTime = time;
+  // Wait for seek, then add keyframe
+  const onSeeked = () => {
+    sourceVideo.removeEventListener('seeked', onSeeked);
+    addKeyframe();
+  };
+  sourceVideo.addEventListener('seeked', onSeeked);
+});
+
+$('kfAdd').addEventListener('click', addKeyframe);
+$('kfRemove').addEventListener('click', removeKeyframe);
+$('kfClear').addEventListener('click', clearKeyframes);
+
+// When controls change while a keyframe is active, update that keyframe
+function onControlChangeForKeyframe() {
+  if(updatingFromKeyframe) return;
+  if(activeKeyframe >= 0 && activeKeyframe < keyframes.length) {
+    keyframes[activeKeyframe].params = captureCurrentParams();
+  }
+}
+
+// Hook into existing control listeners
+const controlsForKeyframe = ['algorithm','pixelSize','threshold','contrast','brightness',
+  'fgColor','bgColor','invert','chromaColor','chromaTolerance','chromaKey',
+  'lumaKey','lumaKeyType','lumaThreshold','lumaFeather'];
+controlsForKeyframe.forEach(id => {
+  $(id).addEventListener('input', onControlChangeForKeyframe);
+  $(id).addEventListener('change', onControlChangeForKeyframe);
+});
+
+function resetControls() {
+  $('pixelSize').value = 3; $('pixelSizeVal').textContent = '3';
+  $('threshold').value = 128; $('thresholdVal').textContent = '128';
+  $('contrast').value = 20; $('contrastVal').textContent = '20';
+  $('brightness').value = 0; $('brightnessVal').textContent = '0';
+  $('algorithm').value = 'floyd-steinberg';
+  $('fgColor').value = '#006BF4';
+  $('bgColor').value = '#ffffff';
+  $('invert').checked = false;
+  $('chromaKey').checked = false;
+  $('chromaKeyControls').style.display = 'none';
+  $('chromaColor').value = '#00ff00';
+  $('chromaTolerance').value = 50; $('chromaToleranceVal').textContent = '50';
+  $('lumaKey').checked = false;
+  $('lumaKeyControls').style.display = 'none';
+  $('lumaKeyType').value = 'brighter';
+  $('lumaThreshold').value = 200; $('lumaThresholdVal').textContent = '200';
+  $('lumaFeather').value = 0; $('lumaFeatherVal').textContent = '0';
+  $('gifFps').value = 10; $('gifFpsVal').textContent = '10';
+  cleanupBgMedia();
+  keyframes = [];
+  activeKeyframe = -1;
+  renderKeyframeMarkers();
+  render();
+}
+
+$('resetBtn').addEventListener('click', resetControls);
+$('resetBtn2').addEventListener('click', resetControls);
+
+// ---- IMAGE EXPORT ----
+
+$('saveBtn').addEventListener('click', () => {
+  if(!sourceImg) return;
+  const a = document.createElement('a');
+  a.download = 'dithered.png';
+  a.href = output.toDataURL('image/png');
+  a.click();
+});
+
+$('saveSvgBtn').addEventListener('click', () => {
+  if(!sourceImg || !lastResult) return;
+
+  const { result, sw, sh, scale, fg, bg, chromaMask } = lastResult;
+  const w = sw * scale;
+  const h = sh * scale;
+  const fgHex = rgbToHex(fg);
+  const bgHex = rgbToHex(bg);
+
+  let rects = '';
+
+  for(let y = 0; y < sh; y++) {
+    let runStart = 0;
+    let runVal = result[y * sw];
+    let runMasked = chromaMask ? (chromaMask[y * sw] >= 0.5 ? 1 : 0) : 0;
+
+    for(let x = 1; x <= sw; x++) {
+      const val = x < sw ? result[y * sw + x] : -1;
+      const masked = x < sw ? (chromaMask ? (chromaMask[y * sw + x] >= 0.5 ? 1 : 0) : 0) : -1;
+      if(val !== runVal || masked !== runMasked) {
+        if(runVal === 0 && !runMasked) {
+          rects += `<rect x="${runStart * scale}" y="${y * scale}" width="${(x - runStart) * scale}" height="${scale}" fill="${fgHex}"/>`;
+        }
+        runStart = x;
+        runVal = val;
+        runMasked = masked;
+      }
+    }
+  }
+
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" shape-rendering="crispEdges">
+<rect width="${w}" height="${h}" fill="${bgHex}"/>
+${rects}
+</svg>`;
+
+  const a = document.createElement('a');
+  a.download = 'dithered.svg';
+  a.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+});
+
+// ---- VIDEO PLAYBACK ----
+
+$('playPauseBtn').addEventListener('click', () => {
+  if(!sourceVideo) return;
+  if(playing) {
+    sourceVideo.pause();
+    if(bgMedia && bgMediaIsVideo) bgMedia.pause();
+    if(lumaBgMedia && lumaBgMediaIsVideo) lumaBgMedia.pause();
+    playing = false;
+    $('playPauseBtn').innerHTML = '&#9654;';
+  } else {
+    sourceVideo.play();
+    if(bgMedia && bgMediaIsVideo) { bgMedia.currentTime = sourceVideo.currentTime; bgMedia.play(); }
+    if(lumaBgMedia && lumaBgMediaIsVideo) { lumaBgMedia.currentTime = sourceVideo.currentTime; lumaBgMedia.play(); }
+    playing = true;
+    $('playPauseBtn').innerHTML = '&#9646;&#9646;';
+    playLoop();
+  }
+});
+
+function playLoop() {
+  if(!playing || sourceVideo.ended || sourceVideo.paused) {
+    playing = false;
+    $('playPauseBtn').innerHTML = '&#9654;';
+    return;
+  }
+  // Apply keyframe interpolation during playback
+  if(keyframes.length > 0) {
+    const params = getParamsAtTime(sourceVideo.currentTime);
+    if(params) applyParamsToDOM(params);
+  }
+  renderVideoFrame();
+  updateScrubber();
+  requestAnimationFrame(playLoop);
+}
+
+$('videoScrub').addEventListener('input', () => {
+  if(!sourceVideo) return;
+  const time = (parseFloat($('videoScrub').value) / 1000) * sourceVideo.duration;
+  sourceVideo.currentTime = time;
+  if(bgMedia && bgMediaIsVideo) bgMedia.currentTime = time;
+  if(lumaBgMedia && lumaBgMediaIsVideo) lumaBgMedia.currentTime = time;
+});
+
+sourceVideo_el = $('sourceVideo');
+sourceVideo_el.addEventListener('ended', () => {
+  playing = false;
+  if(bgMedia && bgMediaIsVideo) bgMedia.pause();
+  if(lumaBgMedia && lumaBgMediaIsVideo) lumaBgMedia.pause();
+  $('playPauseBtn').innerHTML = '&#9654;';
+});
+
+function updateScrubber() {
+  if(!sourceVideo || !sourceVideo.duration) return;
+  $('videoScrub').value = Math.round((sourceVideo.currentTime / sourceVideo.duration) * 1000);
+  updateVideoTime();
+}
+
+function updateVideoTime() {
+  if(!sourceVideo) return;
+  const t = sourceVideo.currentTime || 0;
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  $('videoTime').textContent = m + ':' + String(s).padStart(2, '0');
+}
+
+// ---- DITHERING ENGINE ----
+
+function render() {
+  if(isVideoMode) {
+    renderVideoFrame();
+    return;
+  }
+  if(!sourceImg) return;
+
+  const scale = parseInt($('pixelSize').value);
+  const sw = Math.floor(sourceImg.width / scale);
+  const sh = Math.floor(sourceImg.height / scale);
+
+  work.width = sw;
+  work.height = sh;
+  wctx.drawImage(sourceImg, 0, 0, sw, sh);
+
+  applyDither(sw, sh, scale);
+}
+
+function renderVideoFrame() {
+  if(!sourceVideo || !sourceVideo.videoWidth) return;
+
+  const scale = parseInt($('pixelSize').value);
+  const sw = Math.floor(sourceVideo.videoWidth / scale);
+  const sh = Math.floor(sourceVideo.videoHeight / scale);
+
+  work.width = sw;
+  work.height = sh;
+  wctx.drawImage(sourceVideo, 0, 0, sw, sh);
+
+  applyDither(sw, sh, scale);
+}
+
+function applyDither(sw, sh, scale) {
+  const algo = $('algorithm').value;
+  const thresh = parseInt($('threshold').value);
+  const contrastVal = parseInt($('contrast').value);
+  const brightnessVal = parseInt($('brightness').value);
+  const invert = $('invert').checked;
+  const fgHex = $('fgColor').value;
+  const bgHex = $('bgColor').value;
+
+  const imageData = wctx.getImageData(0, 0, sw, sh);
+  const pixels = imageData.data;
+
+  // Chroma key mask (binary)
+  const useChroma = $('chromaKey').checked;
+  let chromaMask = null;
+  if(useChroma) {
+    const keyRGB = hexToRGB($('chromaColor').value);
+    const tolerance = parseInt($('chromaTolerance').value);
+    const tolSq = tolerance * tolerance;
+    chromaMask = new Float32Array(sw * sh);
+    for(let i = 0; i < sw * sh; i++) {
+      const idx = i * 4;
+      const dr = pixels[idx] - keyRGB[0];
+      const dg = pixels[idx+1] - keyRGB[1];
+      const db = pixels[idx+2] - keyRGB[2];
+      if(dr*dr + dg*dg + db*db <= tolSq) {
+        chromaMask[i] = 1.0;
+      }
+    }
+  }
+
+  // Luma key mask (with spatial feather/erode)
+  const useLuma = $('lumaKey').checked;
+  let lumaMask = null;
+  if(useLuma) {
+    const keyType = $('lumaKeyType').value;
+    const lumaThresh = parseInt($('lumaThreshold').value);
+    const feather = parseInt($('lumaFeather').value);
+
+    // Step 1: Build raw binary mask based on luminance threshold
+    const rawMask = new Float32Array(sw * sh);
+    for(let i = 0; i < sw * sh; i++) {
+      const idx = i * 4;
+      const luma = 0.299 * pixels[idx] + 0.587 * pixels[idx+1] + 0.114 * pixels[idx+2];
+      if(keyType === 'brighter') {
+        rawMask[i] = luma >= lumaThresh ? 1.0 : 0.0;
+      } else {
+        rawMask[i] = luma <= lumaThresh ? 1.0 : 0.0;
+      }
+    }
+
+    // Step 2: Apply spatial erosion (negative) or dilation+blur (positive)
+    if(feather === 0) {
+      lumaMask = rawMask;
+    } else if(feather < 0) {
+      // Negative feather: erode the mask — shrink keyed area inward
+      // Each step of erosion removes 1 pixel from the mask border
+      const passes = Math.abs(feather);
+      let current = rawMask;
+      for(let p = 0; p < passes; p++) {
+        const next = new Float32Array(sw * sh);
+        for(let y = 0; y < sh; y++) {
+          for(let x = 0; x < sw; x++) {
+            const i = y * sw + x;
+            if(current[i] < 1.0) { next[i] = 0; continue; }
+            // Only keep pixel if ALL 4 neighbors are also masked
+            const top = y > 0 ? current[(y-1)*sw+x] : 0;
+            const bot = y < sh-1 ? current[(y+1)*sw+x] : 0;
+            const lft = x > 0 ? current[y*sw+(x-1)] : 0;
+            const rgt = x < sw-1 ? current[y*sw+(x+1)] : 0;
+            next[i] = (top >= 1 && bot >= 1 && lft >= 1 && rgt >= 1) ? 1.0 : 0.0;
+          }
+        }
+        current = next;
+      }
+      lumaMask = current;
+    } else {
+      // Positive feather: distance-based soft edge using box blur on raw mask
+      let current = rawMask;
+      const passes = feather;
+      for(let p = 0; p < passes; p++) {
+        const next = new Float32Array(sw * sh);
+        for(let y = 0; y < sh; y++) {
+          for(let x = 0; x < sw; x++) {
+            const i = y * sw + x;
+            let sum = current[i];
+            let count = 1;
+            if(y > 0)    { sum += current[(y-1)*sw+x]; count++; }
+            if(y < sh-1) { sum += current[(y+1)*sw+x]; count++; }
+            if(x > 0)    { sum += current[y*sw+(x-1)]; count++; }
+            if(x < sw-1) { sum += current[y*sw+(x+1)]; count++; }
+            next[i] = sum / count;
+          }
+        }
+        current = next;
+      }
+      lumaMask = current;
+    }
+  }
+
+  // Combine masks: use max of chroma and luma masks
+  let combinedMask = null;
+  if(chromaMask || lumaMask) {
+    combinedMask = new Float32Array(sw * sh);
+    for(let i = 0; i < sw * sh; i++) {
+      const c = chromaMask ? chromaMask[i] : 0;
+      const l = lumaMask ? lumaMask[i] : 0;
+      combinedMask[i] = Math.max(c, l);
+    }
+  }
+
+  // Convert to grayscale with contrast/brightness
+  const gray = new Float32Array(sw * sh);
+  const factor = (259 * (contrastVal + 255)) / (255 * (259 - contrastVal));
+
+  for(let i = 0; i < sw * sh; i++) {
+    if(combinedMask && combinedMask[i] >= 0.5) {
+      gray[i] = 255; // treat masked pixels as white to avoid error diffusion bleed
+      continue;
+    }
+    const idx = i * 4;
+    let v = 0.299 * pixels[idx] + 0.587 * pixels[idx+1] + 0.114 * pixels[idx+2];
+    v = factor * (v - 128) + 128 + brightnessVal;
+    gray[i] = Math.max(0, Math.min(255, v));
+  }
+
+  // Dither
+  const result = new Uint8Array(sw * sh);
+
+  if(algo === 'floyd-steinberg') {
+    floydSteinberg(gray, result, sw, sh, thresh);
+  } else if(algo === 'atkinson') {
+    atkinson(gray, result, sw, sh, thresh);
+  } else if(algo === 'ordered4') {
+    orderedDither(gray, result, sw, sh, thresh, 4);
+  } else if(algo === 'ordered8') {
+    orderedDither(gray, result, sw, sh, thresh, 8);
+  } else if(algo === 'threshold') {
+    thresholdDither(gray, result, sw, sh, thresh);
+  } else if(algo === 'random') {
+    randomDither(gray, result, sw, sh, thresh);
+  }
+
+  // Draw output
+  output.width = sw * scale;
+  output.height = sh * scale;
+  octx.imageSmoothingEnabled = false;
+
+  const fg = hexToRGB(invert ? bgHex : fgHex);
+  const bg = hexToRGB(invert ? fgHex : bgHex);
+
+  const outW = sw * scale;
+  const outH = sh * scale;
+  const outData = octx.createImageData(outW, outH);
+  const od = outData.data;
+
+  // Get background replacement pixels if available
+  const chromaBgPx = (bgMedia && chromaMask) ? getBgPixels(outW, outH, bgMedia) : null;
+  const lumaBgPx = (lumaBgMedia && lumaMask) ? getLumaBgPixels(outW, outH) : null;
+
+  for(let y = 0; y < sh; y++) {
+    for(let x = 0; x < sw; x++) {
+      const pi = y * sw + x;
+      const cMask = chromaMask ? chromaMask[pi] : 0;
+      const lMask = lumaMask ? lumaMask[pi] : 0;
+      const maskVal = combinedMask ? combinedMask[pi] : 0;
+      const on = result[pi];
+      const c = on ? bg : fg;
+      for(let sy = 0; sy < scale; sy++) {
+        for(let sx = 0; sx < scale; sx++) {
+          const oi = ((y * scale + sy) * outW + (x * scale + sx)) * 4;
+          if(maskVal > 0) {
+            // Determine which bg source to use (pick the mask with higher contribution)
+            const useBg = (cMask >= lMask && chromaBgPx) ? chromaBgPx : (lumaBgPx || chromaBgPx);
+            if(useBg) {
+              const inv = 1 - maskVal;
+              od[oi]   = Math.round(c[0] * inv + useBg[oi]   * maskVal);
+              od[oi+1] = Math.round(c[1] * inv + useBg[oi+1] * maskVal);
+              od[oi+2] = Math.round(c[2] * inv + useBg[oi+2] * maskVal);
+              od[oi+3] = 255;
+            } else {
+              od[oi] = c[0]; od[oi+1] = c[1]; od[oi+2] = c[2];
+              od[oi+3] = Math.round(255 * (1 - maskVal));
+            }
+          } else {
+            od[oi] = c[0]; od[oi+1] = c[1]; od[oi+2] = c[2]; od[oi+3] = 255;
+          }
+        }
+      }
+    }
+  }
+  octx.putImageData(outData, 0, 0);
+
+  lastResult = { result, sw, sh, scale, fg, bg, chromaMask: combinedMask };
+}
+
+// ---- DITHERING ALGORITHMS (unchanged) ----
+
+function floydSteinberg(gray, result, w, h, thresh) {
+  const g = Float32Array.from(gray);
+  for(let y = 0; y < h; y++) {
+    for(let x = 0; x < w; x++) {
+      const i = y * w + x;
+      const old = g[i];
+      const val = old < thresh ? 0 : 255;
+      result[i] = val > 0 ? 1 : 0;
+      const err = old - val;
+      if(x+1 < w)             g[i + 1]     += err * 7/16;
+      if(y+1 < h && x-1 >= 0) g[i + w - 1] += err * 3/16;
+      if(y+1 < h)             g[i + w]     += err * 5/16;
+      if(y+1 < h && x+1 < w)  g[i + w + 1] += err * 1/16;
+    }
+  }
+}
+
+function atkinson(gray, result, w, h, thresh) {
+  const g = Float32Array.from(gray);
+  for(let y = 0; y < h; y++) {
+    for(let x = 0; x < w; x++) {
+      const i = y * w + x;
+      const old = g[i];
+      const val = old < thresh ? 0 : 255;
+      result[i] = val > 0 ? 1 : 0;
+      const err = (old - val) / 8;
+      if(x+1 < w) g[i+1] += err;
+      if(x+2 < w) g[i+2] += err;
+      if(y+1 < h && x-1 >= 0) g[i+w-1] += err;
+      if(y+1 < h) g[i+w] += err;
+      if(y+1 < h && x+1 < w) g[i+w+1] += err;
+      if(y+2 < h) g[i+w*2] += err;
+    }
+  }
+}
+
+function orderedDither(gray, result, w, h, thresh, size) {
+  const bayer4 = [
+    [0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]
+  ];
+  const bayer8 = [
+    [0,32,8,40,2,34,10,42],[48,16,56,24,50,18,58,26],
+    [12,44,4,36,14,46,6,38],[60,28,52,20,62,30,54,22],
+    [3,35,11,43,1,33,9,41],[51,19,59,27,49,17,57,25],
+    [15,47,7,39,13,45,5,37],[63,31,55,23,61,29,53,21]
+  ];
+  const matrix = size === 4 ? bayer4 : bayer8;
+  const n = size * size;
+
+  for(let y = 0; y < h; y++) {
+    for(let x = 0; x < w; x++) {
+      const i = y * w + x;
+      const bayerVal = matrix[y % size][x % size] / n;
+      result[i] = (gray[i] / 255) > bayerVal ? 1 : 0;
+    }
+  }
+}
+
+function thresholdDither(gray, result, w, h, thresh) {
+  for(let i = 0; i < w * h; i++) {
+    result[i] = gray[i] >= thresh ? 1 : 0;
+  }
+}
+
+function randomDither(gray, result, w, h, thresh) {
+  for(let i = 0; i < w * h; i++) {
+    const noise = (Math.random() - 0.5) * 128;
+    result[i] = (gray[i] + noise) >= thresh ? 1 : 0;
+  }
+}
+
+// ---- VIDEO EXPORT ----
+
+$('exportVideoBtn').addEventListener('click', async () => {
+  if(!sourceVideo) return;
+  const format = $('exportFormat').value;
+  cancelExport = false;
+  setExportUI(true);
+
+  try {
+    if(format === 'webm') {
+      await exportWebM();
+    } else if(format === 'gif') {
+      await exportGIF();
+    } else if(format === 'mp4') {
+      await exportMP4();
+    }
+  } catch(err) {
+    if(err.message !== 'cancelled') {
+      console.error('Export error:', err);
+      alert('Export failed: ' + err.message);
+    }
+  }
+
+  setExportUI(false);
+});
+
+$('cancelExportBtn').addEventListener('click', () => {
+  cancelExport = true;
+});
+
+function setExportUI(exporting) {
+  $('exportProgress').style.display = exporting ? 'block' : 'none';
+  $('exportVideoBtn').disabled = exporting;
+  $('progressBar').style.width = '0%';
+  $('progressText').textContent = '0%';
+  $('progressLabel').textContent = 'Exporting...';
+}
+
+function updateProgress(ratio, label) {
+  const pct = Math.round(ratio * 100);
+  $('progressBar').style.width = pct + '%';
+  $('progressText').textContent = pct + '%';
+  if(label) $('progressLabel').textContent = label;
+}
+
+function downloadBlob(blob, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function seekTo(time) {
+  return new Promise(resolve => {
+    let pending = 1;
+    const done = () => { if(--pending === 0) resolve(); };
+
+    sourceVideo.currentTime = time;
+    sourceVideo.onseeked = () => {
+      sourceVideo.onseeked = () => { if(!playing) renderVideoFrame(); };
+      done();
+    };
+
+    if(bgMedia && bgMediaIsVideo) {
+      pending++;
+      bgMedia.currentTime = time;
+      bgMedia.onseeked = done;
+    }
+
+    if(lumaBgMedia && lumaBgMediaIsVideo) {
+      pending++;
+      lumaBgMedia.currentTime = time;
+      lumaBgMedia.onseeked = done;
+    }
+  });
+}
+
+// ---- WebM Export via MediaRecorder ----
+
+async function exportWebM() {
+  updateProgress(0, 'Recording WebM...');
+
+  const fps = 30;
+  const stream = output.captureStream(fps);
+  const mimeTypes = [
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm'
+  ];
+  let mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+
+  const recorder = new MediaRecorder(stream, {
+    mimeType,
+    videoBitsPerSecond: 2000000
+  });
+
+  const chunks = [];
+  recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
+
+  return new Promise((resolve, reject) => {
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      downloadBlob(blob, 'dithered.webm');
+      resolve();
+    };
+
+    recorder.start(100);
+
+    // Play video from start and dither each frame
+    sourceVideo.currentTime = 0;
+    const wasPaused = sourceVideo.paused;
+
+    sourceVideo.onseeked = () => {
+      sourceVideo.play();
+      if(bgMedia && bgMediaIsVideo) { bgMedia.currentTime = 0; bgMedia.play(); }
+
+      function recordFrame() {
+        if(cancelExport) {
+          sourceVideo.pause();
+          if(bgMedia && bgMediaIsVideo) bgMedia.pause();
+          recorder.stop();
+          reject(new Error('cancelled'));
+          return;
+        }
+        if(sourceVideo.ended || sourceVideo.paused) {
+          recorder.stop();
+          return;
+        }
+        if(keyframes.length > 0) {
+          const params = getParamsAtTime(sourceVideo.currentTime);
+          if(params) applyParamsToDOM(params);
+        }
+        renderVideoFrame();
+        updateProgress(sourceVideo.currentTime / sourceVideo.duration);
+        updateScrubber();
+        requestAnimationFrame(recordFrame);
+      }
+
+      sourceVideo.onended = () => {
+        if(bgMedia && bgMediaIsVideo) bgMedia.pause();
+        setTimeout(() => recorder.stop(), 100);
+      };
+
+      recordFrame();
+    };
+  });
+}
+
+// ---- GIF Export via Inline Encoder ----
+
+async function exportGIF() {
+  const fps = parseInt($('gifFps').value);
+  const duration = sourceVideo.duration;
+  const totalFrames = Math.floor(duration * fps);
+  const delay = Math.round(1000 / fps);
+  const hasKeyframes = keyframes.length > 0;
+
+  updateProgress(0, 'Encoding GIF (' + totalFrames + ' frames)...');
+
+  // Fixed output dimensions based on video native size (scale=1)
+  // This ensures consistent frame size even when pixelSize keyframes change
+  const fixedW = sourceVideo.videoWidth;
+  const fixedH = sourceVideo.videoHeight;
+
+  // Staging canvas for consistent frame size
+  const stageCanvas = document.createElement('canvas');
+  stageCanvas.width = fixedW;
+  stageCanvas.height = fixedH;
+  const stageCtx = stageCanvas.getContext('2d');
+  stageCtx.imageSmoothingEnabled = false;
+
+  // Get initial colors for the GIF palette
+  const initParams = hasKeyframes ? getParamsAtTime(0) : captureCurrentParams();
+  const initInvert = initParams.invert;
+  const fg = hexToRGB(initInvert ? initParams.bgColor : initParams.fgColor);
+  const bg = hexToRGB(initInvert ? initParams.fgColor : initParams.bgColor);
+
+  const encoder = new MiniGIFEncoder(fixedW, fixedH, fg, bg, delay);
+
+  for(let i = 0; i < totalFrames; i++) {
+    if(cancelExport) throw new Error('cancelled');
+
+    const t = i / fps;
+    if(hasKeyframes) {
+      const params = getParamsAtTime(t);
+      if(params) applyParamsToDOM(params);
+    }
+
+    await seekTo(t);
+    renderVideoFrame();
+
+    // Draw the output canvas (which may vary in size) onto the fixed staging canvas
+    stageCtx.fillStyle = rgbToHex(bg);
+    stageCtx.fillRect(0, 0, fixedW, fixedH);
+    stageCtx.drawImage(output, 0, 0, fixedW, fixedH);
+
+    // Get pixel data and map to palette indices
+    const imgData = stageCtx.getImageData(0, 0, fixedW, fixedH);
+    const indices = new Uint8Array(fixedW * fixedH);
+    for(let p = 0; p < fixedW * fixedH; p++) {
+      const r = imgData.data[p * 4];
+      const g = imgData.data[p * 4 + 1];
+      const b = imgData.data[p * 4 + 2];
+      // Map to nearest palette color (0=fg, 1=bg)
+      const dFg = (r-fg[0])**2 + (g-fg[1])**2 + (b-fg[2])**2;
+      const dBg = (r-bg[0])**2 + (g-bg[1])**2 + (b-bg[2])**2;
+      indices[p] = dBg <= dFg ? 1 : 0;
+    }
+
+    encoder.addFrame(indices);
+    updateProgress((i + 1) / totalFrames);
+
+    if(i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+
+  const blob = encoder.finish();
+  downloadBlob(blob, 'dithered.gif');
+}
+
+// ---- Minimal 2-Color GIF Encoder ----
+
+class MiniGIFEncoder {
+  constructor(width, height, color0, color1, delay) {
+    this.width = width;
+    this.height = height;
+    this.color0 = color0;
+    this.color1 = color1;
+    this.delay = Math.round(delay / 10); // GIF delay in 1/100s
+    this.frames = [];
+    this.output = [];
+  }
+
+  addFrame(indices) {
+    this.frames.push(new Uint8Array(indices));
+  }
+
+  finish() {
+    const out = this.output;
+    // GIF89a header
+    this.writeString('GIF89a');
+    this.writeLittleEndian16(this.width);
+    this.writeLittleEndian16(this.height);
+    // GCT flag=1, color resolution=1, sort=0, GCT size=1 (2 colors) => 0x80 | 0x00 = 0x80
+    out.push(0x80);
+    out.push(0); // bg color index
+    out.push(0); // pixel aspect ratio
+
+    // Global Color Table (2 entries)
+    out.push(this.color0[0], this.color0[1], this.color0[2]);
+    out.push(this.color1[0], this.color1[1], this.color1[2]);
+
+    // Netscape Application Extension (looping)
+    out.push(0x21, 0xFF, 0x0B);
+    this.writeString('NETSCAPE2.0');
+    out.push(0x03, 0x01);
+    this.writeLittleEndian16(0); // loop count 0 = infinite
+    out.push(0x00); // block terminator
+
+    for(const frame of this.frames) {
+      // Graphic Control Extension
+      out.push(0x21, 0xF9, 0x04);
+      out.push(0x00); // disposal method 0, no transparency
+      this.writeLittleEndian16(this.delay);
+      out.push(0x00); // transparent color index (unused)
+      out.push(0x00); // block terminator
+
+      // Image Descriptor
+      out.push(0x2C);
+      this.writeLittleEndian16(0); // left
+      this.writeLittleEndian16(0); // top
+      this.writeLittleEndian16(this.width);
+      this.writeLittleEndian16(this.height);
+      out.push(0x00); // no local color table
+
+      // LZW compressed data
+      this.writeLZW(frame);
+    }
+
+    // Trailer
+    out.push(0x3B);
+
+    return new Blob([new Uint8Array(out)], { type: 'image/gif' });
+  }
+
+  writeString(s) {
+    for(let i = 0; i < s.length; i++) this.output.push(s.charCodeAt(i));
+  }
+
+  writeLittleEndian16(val) {
+    this.output.push(val & 0xFF, (val >> 8) & 0xFF);
+  }
+
+  writeLZW(indices) {
+    const minCodeSize = 2; // minimum for GIF
+    this.output.push(minCodeSize);
+
+    const clearCode = 1 << minCodeSize; // 4
+    const eoiCode = clearCode + 1; // 5
+
+    let codeSize = minCodeSize + 1;
+    let nextCode = eoiCode + 1;
+    const maxTableSize = 4096;
+
+    // LZW compression with sub-blocks
+    let bitBuf = 0;
+    let bitCount = 0;
+    const subBlock = [];
+    const allSubBlocks = [];
+
+    function emitCode(code) {
+      bitBuf |= (code << bitCount);
+      bitCount += codeSize;
+      while(bitCount >= 8) {
+        subBlock.push(bitBuf & 0xFF);
+        bitBuf >>= 8;
+        bitCount -= 8;
+        if(subBlock.length === 255) {
+          allSubBlocks.push(subBlock.length, ...subBlock);
+          subBlock.length = 0;
+        }
+      }
+    }
+
+    // Initialize table
+    let table = new Map();
+    function resetTable() {
+      table.clear();
+      for(let i = 0; i < clearCode; i++) {
+        table.set(String(i), i);
+      }
+      codeSize = minCodeSize + 1;
+      nextCode = eoiCode + 1;
+    }
+
+    emitCode(clearCode);
+    resetTable();
+
+    let prefix = String(indices[0]);
+
+    for(let i = 1; i < indices.length; i++) {
+      const k = String(indices[i]);
+      const combined = prefix + ',' + k;
+
+      if(table.has(combined)) {
+        prefix = combined;
+      } else {
+        emitCode(table.get(prefix));
+
+        if(nextCode < maxTableSize) {
+          table.set(combined, nextCode++);
+          if(nextCode > (1 << codeSize) && codeSize < 12) {
+            codeSize++;
+          }
+        } else {
+          emitCode(clearCode);
+          resetTable();
+        }
+        prefix = k;
+      }
+    }
+
+    emitCode(table.get(prefix));
+    emitCode(eoiCode);
+
+    // Flush remaining bits
+    if(bitCount > 0) {
+      subBlock.push(bitBuf & 0xFF);
+    }
+
+    if(subBlock.length > 0) {
+      allSubBlocks.push(subBlock.length, ...subBlock);
+    }
+
+    // Write sub-blocks
+    for(const b of allSubBlocks) {
+      this.output.push(b);
+    }
+
+    // Block terminator
+    this.output.push(0x00);
+  }
+}
+
+// ---- MP4 Export via WebCodecs + mp4-muxer ----
+
+let Mp4MuxerModule = null;
+
+async function exportMP4() {
+  // Check for WebCodecs support
+  if(typeof VideoEncoder === 'undefined') {
+    alert('MP4 export requires the WebCodecs API.\n\nPlease use Chrome 94+ or Edge 94+.\nAlternatively, export as WebM.');
+    return;
+  }
+
+  updateProgress(0, 'Loading MP4 encoder...');
+
+  // Lazy-load mp4-muxer ESM module
+  if(!Mp4MuxerModule) {
+    try {
+      Mp4MuxerModule = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.mjs');
+    } catch(e) {
+      console.error('Failed to load mp4-muxer:', e);
+      alert('Could not load MP4 encoder library.\n\nPlease check your internet connection or export as WebM.');
+      return;
+    }
+  }
+
+  const fps = 30;
+  const duration = sourceVideo.duration;
+  const totalFrames = Math.floor(duration * fps);
+  const hasKeyframes = keyframes.length > 0;
+
+  // Fixed dimensions based on native video size (even for H.264)
+  let w = sourceVideo.videoWidth;
+  let h = sourceVideo.videoHeight;
+  if(w % 2 !== 0) w--;
+  if(h % 2 !== 0) h--;
+
+  updateProgress(0, 'Encoding MP4 (' + totalFrames + ' frames)...');
+
+  const muxer = new Mp4MuxerModule.Muxer({
+    target: new Mp4MuxerModule.ArrayBufferTarget(),
+    video: {
+      codec: 'avc',
+      width: w,
+      height: h
+    },
+    fastStart: 'in-memory'
+  });
+
+  let frameCount = 0;
+
+  const encoder = new VideoEncoder({
+    output: (chunk, meta) => {
+      muxer.addVideoChunk(chunk, meta);
+    },
+    error: (e) => {
+      console.error('VideoEncoder error:', e);
+    }
+  });
+
+  encoder.configure({
+    codec: 'avc1.640028',
+    width: w,
+    height: h,
+    bitrate: 2_000_000,
+    framerate: fps,
+    hardwareAcceleration: 'prefer-software'
+  });
+
+  // Fixed-size staging canvas
+  const frameCanvas = document.createElement('canvas');
+  frameCanvas.width = w;
+  frameCanvas.height = h;
+  const frameCtx = frameCanvas.getContext('2d');
+  frameCtx.imageSmoothingEnabled = false;
+
+  try {
+    for(let i = 0; i < totalFrames; i++) {
+      if(cancelExport) throw new Error('cancelled');
+
+      const t = i / fps;
+      if(hasKeyframes) {
+        const params = getParamsAtTime(t);
+        if(params) applyParamsToDOM(params);
+      }
+
+      await seekTo(t);
+      renderVideoFrame();
+
+      // Draw output canvas (variable size) to fixed staging canvas
+      frameCtx.fillStyle = '#000';
+      frameCtx.fillRect(0, 0, w, h);
+      frameCtx.drawImage(output, 0, 0, w, h);
+
+      const frame = new VideoFrame(frameCanvas, {
+        timestamp: Math.round(t * 1_000_000),
+        duration: Math.round((1 / fps) * 1_000_000)
+      });
+
+      encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });
+      frame.close();
+
+      frameCount++;
+      updateProgress(frameCount / totalFrames);
+
+      if(i % 3 === 0) await new Promise(r => setTimeout(r, 0));
+    }
+
+    await encoder.flush();
+    muxer.finalize();
+
+    const { buffer } = muxer.target;
+    const mp4Blob = new Blob([buffer], { type: 'video/mp4' });
+    downloadBlob(mp4Blob, 'dithered.mp4');
+
+  } finally {
+    encoder.close();
+  }
+}
+
+// ---- HELPERS ----
+
+function hexToRGB(hex) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return [r, g, b];
+}
+
+function rgbToHex(rgb) {
+  return '#' + rgb.map(v => v.toString(16).padStart(2, '0')).join('');
+}
+</script>
+</body>
+</html>
